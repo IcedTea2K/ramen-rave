@@ -13,7 +13,7 @@
    ],
 
    "background": {
-      "page": "background-page.html"
+      "page": "./background/background.html"
    },
 
    "action": {
