@@ -16,6 +16,14 @@
       "page": "background-page.html"
    },
 
+   "action": {
+      "default_icon": {
+         "32": "assets/ramen-icon.png"
+      },
+      "default_popup": "pop-up/pop-up.html",
+      "default_title": "Start the ramen rave!!"
+   },
+
    "browser_specific_settings": {
       "gecko": {
          "id": "veryUniqueID@gmail.com"

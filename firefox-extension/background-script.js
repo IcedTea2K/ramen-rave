@@ -12,6 +12,9 @@ WebAssembly.instantiateStreaming(fetch("bin/main.wasm"), go.importObject).then((
 let contentCommPort;
 
 browser.runtime.onConnect.addListener((port) => {
+   // Only listen to the background port
+   if (port.name != "bg-comm")
+      return;
    contentCommPort = port;
-   contentCommPort.postMessage({ message: "You stinky" })
+   contentCommPort.postMessage({ message: "You stinky in the background" })
 })
