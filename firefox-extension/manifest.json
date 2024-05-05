@@ -7,14 +7,22 @@
 
    "content_scripts": [
       {
-         "matches": ["*://*.mozilla.org/*"],
+         "matches": ["*://*.netflix.com/*"],
          "js": ["index.js"]
       }
    ],
+
+   "background": {
+      "page": "background-page.html"
+   },
 
    "browser_specific_settings": {
       "gecko": {
          "id": "veryUniqueID@gmail.com"
       }
+   },
+
+   "content_security_policy": {
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self'"
    }
 }

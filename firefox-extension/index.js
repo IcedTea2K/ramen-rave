@@ -1,1 +1,1 @@
-console.log("Testing testing")
+console.log("Extension entry")
