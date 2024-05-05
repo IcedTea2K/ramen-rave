@@ -1,13 +1,18 @@
 console.log("Extension entry")
-let bgPort = browser.runtime.connect({ name: "bg-comm" })
-let popupPort = browser.runtime.connect({ name: "popup-comm" })
+let popupPort;
+let bgPort = browser.runtime.connect({ name: "bg-comm" });
 
 bgPort.onMessage.addListener((msg) =>{
-   console.log("From background script")
-   console.log(msg)
-})
+   console.log(msg);
+});
 
-popupPort.onMessage.addListener((msg) => {
-   console.log("From popup script")
-   console.log(msg)
-})
+browser.runtime.onConnect.addListener((port) => {
+   if (port.name != "popup-comm")
+      return;
+
+   popupPort = port;
+   popupPort.onMessage.addListener((msg) => {
+      console.log("From popup script");
+      console.log(msg);
+   });
+});

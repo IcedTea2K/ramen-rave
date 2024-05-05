@@ -1,10 +1,23 @@
-console.log("Running pop up")
 let contentCommPort;
 
-browser.runtime.onConnect.addListener((port) => {
-   // Only listen to the pop-up port
-   if (port.name != "popup-comm")
-      return;
-   contentCommPort = port;
-   contentCommPort.postMessage({ message: "Just popped up" })
-})
+let queryRes = browser.tabs.query({
+   currentWindow: true,
+   active: true
+});
+
+queryRes.then(connectToTab, onErrorConnectToTab);
+
+function connectToTab(tabs) {
+   if (tabs.length > 0) {
+      contentCommPort = browser.tabs.connect(tabs[0].id, {
+         name: "popup-comm"
+      });
+
+      contentCommPort.postMessage({ message: "Just popped up" });
+      console.log(tabs)
+   }
+}
+
+function onErrorConnectToTab() {
+   console.log("Cannot connect to active tab");
+}
