@@ -8,7 +8,10 @@
    "content_scripts": [
       {
          "matches": ["*://*.netflix.com/*"],
-         "js": ["index.js"]
+         "js": [
+            "wasm_exec.js",
+            "index.js"
+         ]
       }
    ],
 
@@ -23,6 +26,13 @@
       "default_popup": "pop-up/pop-up.html",
       "default_title": "Start the ramen rave!!"
    },
+
+   "web_accessible_resources": [
+      {
+         "resources": ["bin/main.wasm", "events.js"],
+         "matches": ["*://*.netflix.com/*"]
+      }
+   ],
 
    "browser_specific_settings": {
       "gecko": {

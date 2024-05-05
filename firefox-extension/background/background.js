@@ -1,12 +1,3 @@
-import * as _ from "../wasm_exec.js";
-
-// Fetch and run Go wasm
-const go = new Go();
-
-WebAssembly.instantiateStreaming(fetch("../bin/main.wasm"), go.importObject).then((result) => {
-   go.run(result.instance);
-});
-
 // Listen and talk to the content script
 let contentCommPort;
 
