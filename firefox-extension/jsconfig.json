@@ -1,0 +1,11 @@
+{
+   "compilerOptions": {
+      "checkJs": true,
+      "module": "CommonJS",
+      "target": "ES6",
+      "lib": [
+         "ES6", "DOM"
+      ],
+   },
+   "exclude": ["node_modules"]
+}
