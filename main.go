@@ -45,6 +45,7 @@ func injectChatArea() *chatArea {
    chatAreaHtml.Get("style").Set("flex-direction", "column")
    chatAreaHtml.Get("style").Set("align-items", "center")
    chatAreaHtml.Get("style").Set("font-family", "Droid Sans")
+   chatAreaHtml.Get("style").Set("padding", "0.8rem 0.7rem ")
    // Positioning
    chatAreaHtml.Get("style").Set("position", "fixed")
    chatAreaHtml.Get("style").Set("z-index", "100")
@@ -52,6 +53,12 @@ func injectChatArea() *chatArea {
    chatAreaHtml.Get("style").Set("width", "27.5rem")
    chatAreaHtml.Get("style").Set("bottom", "0px")
    chatAreaHtml.Get("style").Set("right", "0px")
+
+   // Adding messages area
+   messageAreaHtml := document.Call("createElement", "div")
+   messageAreaHtml.Get("style").Set("height", "100%")
+   messageAreaHtml.Get("style").Set("width",  "100%")
+   chatAreaHtml.Call("appendChild", messageAreaHtml)
 
    // Adding input area
    inputAreaHtml := document.Call("createElement", "textarea")
