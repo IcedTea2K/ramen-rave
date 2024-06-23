@@ -16,10 +16,13 @@ const (
    chatAreaTag = "chat-area"
 )
 
+var document js.Value
+
 func main()  {
    logger := log.Default()
    logger.Println("Starting the wasm")
 
+   document = js.Global().Get("document")
    _ = injectChatArea()
 
    // document = js.Global().Get("document")
@@ -29,10 +32,14 @@ func main()  {
    // fmt.Println("Done changing doc")
 
    // browser := js.Global().Get("browser")
+   temp := make(chan struct{})
+   select {
+      case <-temp:
+         break
+   }
 }
 
 func injectChatArea() *chatArea {
-   document := js.Global().Get("document")
    body := document.Get("body")
 
    // Inject html to the page
@@ -75,6 +82,30 @@ func injectChatArea() *chatArea {
    inputAreaHtml.Get("style").Set("color", "#9B9595")
    inputAreaHtml.Get("style").Set("font-size", "0.9375rem")
    inputAreaHtml.Set("rows", 4)
+   inputOnSubmitFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+      if len(args) == 0 || !args[0].Truthy() {
+         return nil
+      }
+
+      event := args[0]
+      if !event.Get("key").Equal(js.ValueOf("Enter")) || 
+         event.Get("shiftKey").Truthy() {
+         return nil
+      }
+
+      msg := this.Get("value")
+      if !msg.Truthy() {
+         return nil
+      }
+      newMsgHtml := createNewMsgHtml(msg.String())
+      messageAreaHtml.Call("appendChild", newMsgHtml)
+
+      // reset the input area
+      inputAreaHtml.Set("value", "")
+
+      return nil
+   })
+   inputAreaHtml.Call("addEventListener", "keypress", inputOnSubmitFunc)
    chatAreaHtml.Call("appendChild", inputAreaHtml)
 
    body.Call("insertAdjacentElement", "afterbegin", chatAreaHtml)
@@ -83,4 +114,13 @@ func injectChatArea() *chatArea {
       isOpen: false,
       htmlEl: chatAreaHtml,
    }
+}
+
+// Create a new message to be added to the chat
+func createNewMsgHtml(msg string) js.Value {
+   msgHtml := document.Call("createElement", "div")
+   msgContentHtml := document.Call("createElement", "p")
+   msgContentHtml.Set("textContent", msg)
+   msgHtml.Call("appendChild", msgContentHtml)
+   return msgHtml
 }

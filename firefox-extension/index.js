@@ -21,7 +21,7 @@
       popupPort.onMessage.addListener(processPopUpMsg);
    });
 
-   function startParty() {
+   async function startParty() {
       // Fetch and run Go wasm
       const go = new Go();
 
