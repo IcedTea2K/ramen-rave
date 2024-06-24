@@ -65,6 +65,7 @@ func injectChatArea() *chatArea {
    messageAreaHtml := document.Call("createElement", "div")
    messageAreaHtml.Get("style").Set("height", "100%")
    messageAreaHtml.Get("style").Set("width",  "100%")
+   messageAreaHtml.Get("style").Set("overflow",  "scroll")
    chatAreaHtml.Call("appendChild", messageAreaHtml)
 
    // Adding input area
@@ -82,28 +83,31 @@ func injectChatArea() *chatArea {
    inputAreaHtml.Get("style").Set("color", "#9B9595")
    inputAreaHtml.Get("style").Set("font-size", "0.9375rem")
    inputAreaHtml.Set("rows", 4)
+   // TODO: REMOVE LATER
+   temp := true
    inputOnSubmitFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
       if len(args) == 0 || !args[0].Truthy() {
-         return nil
+         return true
       }
 
       event := args[0]
       if !event.Get("key").Equal(js.ValueOf("Enter")) || 
          event.Get("shiftKey").Truthy() {
-         return nil
+         return true
       }
 
       msg := this.Get("value")
       if !msg.Truthy() {
-         return nil
+         return true
       }
-      newMsgHtml := createNewMsgHtml(msg.String())
+      newMsgHtml := createNewMsgHtml("Dawg", msg.String(), temp)
+      temp = !temp
       messageAreaHtml.Call("appendChild", newMsgHtml)
 
       // reset the input area
       inputAreaHtml.Set("value", "")
 
-      return nil
+      return false
    })
    inputAreaHtml.Call("addEventListener", "keypress", inputOnSubmitFunc)
    chatAreaHtml.Call("appendChild", inputAreaHtml)
@@ -117,10 +121,45 @@ func injectChatArea() *chatArea {
 }
 
 // Create a new message to be added to the chat
-func createNewMsgHtml(msg string) js.Value {
+func createNewMsgHtml(sender string, msg string, personal bool) js.Value {
+   msgContainerHtml := document.Call("createElement", "div")
+   msgContainerHtml.Get("style").Set("display", "flex")
+   msgContainerHtml.Get("style").Set("width", "100%")
+   msgContainerHtml.Get("style").Set("height", "3.2rem")
+   msgContainerHtml.Get("style").Set("margin", "0 0 1.9rem 0")
+
    msgHtml := document.Call("createElement", "div")
+   msgHtml.Get("style").Set("display", "flex")
+   msgHtml.Get("style").Set("flex-direction", "column")
+   msgHtml.Get("style").Set("width", "75%")
+   msgHtml.Get("style").Set("justify-content", "center")
+   msgHtml.Get("style").Set("gap", "0.5rem")
+   msgHtml.Get("style").Set("border-radius", "0.5625rem")
+   msgHtml.Get("style").Set("padding", "0.3rem 0.5rem")
+   msgHtml.Get("style").Set("font-size", "0.7rem")
+
+   msgSenderHtml := document.Call("createElement", "h3")
+   msgSenderHtml.Set("textContent", sender)
+   msgSenderHtml.Get("style").Set("margin", "0")
+   msgSenderHtml.Get("style").Set("color", "rgba(0, 0, 0, 0.53)")
+   msgHtml.Call("appendChild", msgSenderHtml)
+
    msgContentHtml := document.Call("createElement", "p")
    msgContentHtml.Set("textContent", msg)
+   msgContentHtml.Get("style").Set("margin", "0")
+   msgContentHtml.Get("style").Set("color", "#9B9595")
    msgHtml.Call("appendChild", msgContentHtml)
-   return msgHtml
+
+   // Change style between user's message vs other people's mesaage
+   if personal {
+      msgContainerHtml.Get("style").Set("justify-content", "flex-end")
+      msgHtml.Get("style").Set("background", "rgba(201, 49, 94, 0.29)")
+   } else {
+      msgContainerHtml.Get("style").Set("justify-content", "flex-start")
+      msgHtml.Get("style").Set("background", "rgba(255, 168, 168, 0.29)")
+   }
+
+   msgContainerHtml.Call("appendChild", msgHtml)
+
+   return msgContainerHtml
 }
