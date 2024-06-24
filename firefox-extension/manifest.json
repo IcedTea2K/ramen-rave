@@ -5,16 +5,6 @@
 
    "description": "Movies are more fun in a party. This is a free teleparty alternative on firefox.",
 
-   "content_scripts": [
-      {
-         "matches": ["*://*.netflix.com/*"],
-         "js": [
-            "wasm_exec.js",
-            "index.js"
-         ]
-      }
-   ],
-
    "background": {
       "page": "./background/background.html"
    },
@@ -30,7 +20,7 @@
    "web_accessible_resources": [
       {
          "resources": ["bin/main.wasm", "events.js"],
-         "matches": ["*://*.netflix.com/*"]
+         "matches": ["<all_urls>"]
       }
    ],
 

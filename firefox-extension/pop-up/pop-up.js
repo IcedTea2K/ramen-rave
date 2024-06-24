@@ -1,39 +1,60 @@
-import * as events from "../events.js";
+import * as constants from "../events.js";
 
-let contentCommPort;
-let queryRes = browser.tabs.query({
-   currentWindow: true,
-   active: true
-});
 
-let startPartyButton = document.querySelector("#start-party-btn");
-queryRes.then(connectToTab, onErrorConnectToTab);
-startPartyButton.addEventListener("click", () => messageContentScript("yummy", events.START_PARTY));
-
-function connectToTab(tabs) {
-   if (tabs.length > 0) {
-      contentCommPort = browser.tabs.connect(tabs[0].id, {
-         name: "popup-comm"
+(async () => {
+   let bgPort = null;
+   let startParty = async () => {
+      let activeTabs = await browser.tabs.query({
+         currentWindow: true,
+         active: true
       });
+      if (activeTabs.length > 0) {
+         browser.tabs.onRemoved.addListener((tabId, _) => {
+            if (tabId == activeTabs[0].id) {
+               stopParty()
+            }
+         })
+      }
+
+      const mainScript = {
+         id: "main-script",
+         js: ["../wasm_exec.js", "../index.js"],
+         matches: ["<all_urls>"],
+      }
+
+      try {
+         await browser.scripting.registerContentScripts([mainScript]); 
+      } catch (error) {
+         console.error(`Failed to start the party: ${error}`) 
+      }
    }
-}
 
-function onErrorConnectToTab() {
-   console.log("Cannot connect to active tab");
-}
+   let stopParty = () => {
+      if (bgPort === null)
+      return
 
-function messageContentScript(msgStr, code) {
-   let msg = messageMaker(msgStr, code);
-
-   if (contentCommPort === undefined) {
-      return;
+      bgPort.postMessage({
+         message: "",
+         event_code: constants.STOP_PARTY
+      })
    }
-   contentCommPort.postMessage(msg)
-}
 
-function messageMaker(msg, code) {
-   return {
-      message: msg,
-      event_code: code
-   }
-}
+   let startPartyButton = document.getElementById("start-party-btn");
+   startPartyButton.addEventListener("click", () => {
+      console.log("trying to start party")
+      bgPort = browser.runtime.connect({ name: constants.BG_PORT_NAME });
+      bgPort.onMessage.addListener((msg) => {
+         switch (msg.event_code) {
+            case constants.PORT_REGISTERED:
+               startParty() 
+               break;
+            case constants.PORT_EXISTS:
+            default:
+               bgPort.disconnect()
+         }
+      })
+   });
+
+   let stopPartyButton = document.getElementById("stop-party-btn");
+   stopPartyButton.addEventListener("click", stopParty);
+})()

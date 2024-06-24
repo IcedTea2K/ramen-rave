@@ -1,6 +1,6 @@
 {
    "compilerOptions": {
-      "checkJs": true,
+      "checkJs": false,
       "module": "CommonJS",
       "target": "ES6",
       "lib": [
