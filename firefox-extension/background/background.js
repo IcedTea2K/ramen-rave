@@ -6,6 +6,7 @@
    let ports = new Map()
 
    browser.runtime.onConnect.addListener((port) => {
+      console.log(port.sender)
       // Only listen to the background port
       if (port.name != "bg-comm" || ports.has(port.sender.contextId)) {
          port.postMessage({ 

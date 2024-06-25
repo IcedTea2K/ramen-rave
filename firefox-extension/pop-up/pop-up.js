@@ -43,6 +43,8 @@ import * as constants from "../events.js";
    startPartyButton.addEventListener("click", () => {
       console.log("trying to start party")
       bgPort = browser.runtime.connect({ name: constants.BG_PORT_NAME });
+
+      // Initial confirmation with the background script
       bgPort.onMessage.addListener((msg) => {
          switch (msg.event_code) {
             case constants.PORT_REGISTERED:
