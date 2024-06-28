@@ -4,7 +4,12 @@ package main
 
 import (
 	"log"
-   // "github.com/supabase-community/realtime-go/realtime"
+	"syscall/js"
+)
+
+const (
+   START_PARTY int = iota
+   STOP_PARTY
 )
 
 func main()  {
@@ -13,12 +18,38 @@ func main()  {
 
    chatArea := createChatArea()
 
-   // client := realtime.CreateRealtimeClient("fjveqmouznnqaigdtsxy", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqdmVxbW91em5ucWFpZ2R0c3h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTUxNDEyOTIsImV4cCI6MjAzMDcxNzI5Mn0.ajUGIWg1vP5y4cR5X4OpTapGCTzdq0Oqv7fwWhoWAYQ")
-   temp := make(chan struct{})
-   select {
-      case <-temp:
-         break
-   }
+   msgChan  := make(chan []js.Value)
+   commPort := js.Global().Call("registerFunction", js.FuncOf(func(this js.Value, args []js.Value) any {
+      msgChan <- args
+      return nil
+   }))
+   defer func() {
+      commPort.Call("disconnect")
+   }()
 
-   chatArea.removeChatArea()
+MAIN_LOOP:
+   for {
+      msg := <- msgChan
+      if len(msg) != 2 {
+         logger.Fatal("TYPE ASSERTION FAILED: received more than just data and sender")
+      } else if msg[0].Type() != js.TypeObject {
+         logger.Fatal("TYPE ASSERTION FAILED: expecting an object for message")
+      } else if msg[0].Get("event_code").Type() != js.TypeNumber {
+         logger.Fatal("TYPE ASSERTION FAILED: failed to retrieve the event_code")
+      }
+
+      switch eventCode := msg[0].Get("event_code").Int(); eventCode {
+         case START_PARTY:
+            logger.Println("STARTING THE PARTY")
+            chatArea.injectChatArea()
+            break
+         case STOP_PARTY:
+            chatArea.removeChatArea()
+            break MAIN_LOOP
+         default:
+            logger.Printf("Ignoring event: %v", eventCode)
+            break
+      }
+   }
+   logger.Println("Stopping the wasm")
 }

@@ -35,6 +35,7 @@
    },
 
    "permissions" : [
+      "scripting",
       "activeTab"
    ]
 }
