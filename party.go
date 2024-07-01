@@ -21,10 +21,28 @@ type member struct {
    rtChannel *realtime.RealtimeChannel
 }
 
+type event struct {
+   EventType string `json:"type" validate:"required"`
+   MessageData message `json:"messageData"  validate:"required_if=EventType CHAT"`
+   VideoData videoManipulation `json:"videoData" validate:"required_unless=EventType CHAT"`
+}
+
 type message struct {
    Sender  string `json:"sender"    validate:"required"`
    Payload string `json:"payload"   validate:"required"`
 }
+
+// Contains information about manipulating the video
+type videoManipulation struct {
+
+}
+
+const (
+   CHAT_ACTION string = "CHAT"
+   SEEK_ACTION string = "SEEK"
+   PLAY_ACTION string = "PLAY"
+   PAUSE_ACTION string = "SEEK"
+)
 
 // Create a member and join the realtime channel
 func createMember(name string, partyCode string) (*member, error) {
@@ -50,28 +68,39 @@ func (me *member) addChatArea(newChatArea *chatArea) {
    me.chat.addMember(me)
 }
 
-func (me *member) handleIncomingMessage(msg any) {
-   log.Println("Handling some messages")
-   encodedMsg, err := json.Marshal(msg)
+func (me *member) handleIncomingEvent(newEvent any) {
+   encodedEvent, err := json.Marshal(newEvent)
    if err != nil {
-      log.Printf("Failed to handle incoming message: %v", err)
+      log.Printf("Failed to handle incoming event: %v", err)
       return
    }
 
-   var actualMsg message
-   err = json.Unmarshal(encodedMsg, &actualMsg)
+   actualEvent := &event{}
+   err = json.Unmarshal(encodedEvent, actualEvent)
    if err != nil {
-      log.Printf("Failed to handle incoming message: %v", err)
+      log.Printf("Failed to handle incoming event: %v", err)
       return
    }
-   log.Printf("Received: %+v", actualMsg)
 
    validate := validator.New(validator.WithRequiredStructEnabled())
-   err = validate.Struct(actualMsg)
+   err = validate.Struct(actualEvent)
    if err != nil {
-      log.Printf("Received message is invalid: %v", err)
+      log.Printf("Received event is invalid: %v", err)
       return
    }
+   
+   switch actualEvent.EventType {
+      case CHAT_ACTION: 
+         me.handleIncomingMessage(actualEvent.MessageData)
+         break
+      default:
+         log.Printf("Unable to recognize event type: %v", actualEvent.EventType)
+         break
+   }
+}
+
+func (me *member) handleIncomingMessage(msg message) {
+   log.Printf("Received: %+v", msg)
 }
 
 // Join party
@@ -83,7 +112,7 @@ func (me *member) joinParty() error {
 
    err := me.rtChannel.On("broadcast", map[string]string{
       "event" : "message",
-   }, me.handleIncomingMessage)
+   }, me.handleIncomingEvent)
    if err != nil {
       return fmt.Errorf("Unable to join the party: %v", err)
    }
