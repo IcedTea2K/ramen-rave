@@ -43,6 +43,8 @@ const (
    SEEK_ACTION string = "SEEK"
    PLAY_ACTION string = "PLAY"
    PAUSE_ACTION string = "SEEK"
+
+   NEW_EVENT string = "NEW EVENT"
 )
 
 // Create a member and join the realtime channel
@@ -67,6 +69,31 @@ func (me *member) addChatArea(newChatArea *chatArea) {
    }
    me.chat = newChatArea
    me.chat.addMember(me)
+}
+
+// Post the message to the realtime connections
+func (me *member) postMsg(msg string) error {
+   log.Println("Posting new messages")
+   ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
+   defer cancel()
+
+   err := me.rtChannel.Send(realtime.CustomEvent{
+      Event: NEW_EVENT, 
+      Payload: event{
+         EventType: CHAT_ACTION,
+         Sender: me.name,
+         MessageData: message{
+            Payload: msg,
+         }, 
+      },
+      Type: "broadcast",
+   }, ctx)
+   if err != nil {
+      return fmt.Errorf("Failed to post message: %v", err)
+   }
+   log.Println("Done posting")
+
+   return nil
 }
 
 func (me *member) handleIncomingEvent(newEvent any) {
@@ -117,7 +144,7 @@ func (me *member) joinParty() error {
    }
 
    err := me.rtChannel.On("broadcast", map[string]string{
-      "event" : "message",
+      "event" : NEW_EVENT,
    }, me.handleIncomingEvent)
    if err != nil {
       return fmt.Errorf("Unable to join the party: %v", err)

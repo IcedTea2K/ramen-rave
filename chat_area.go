@@ -1,7 +1,9 @@
 //go:build js && wasm
+
 package main
 
 import (
+	"log"
 	"syscall/js"
 )
 
@@ -71,6 +73,11 @@ func createChatArea() *chatArea {
       msg := this.Get("value")
       if !msg.Truthy() {
          return true
+      }
+      err := newChatArea.currentMember.postMsg(msg.String())
+      if err != nil {
+         log.Printf("Failed to send message: %v", err)
+         return nil
       }
       newChatArea.displayMsg(newChatArea.currentMember.name, msg.String(), true)
 
