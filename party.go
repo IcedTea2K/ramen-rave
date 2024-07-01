@@ -48,13 +48,6 @@ func (me *member) addChatArea(newChatArea *chatArea) {
    }
    me.chat = newChatArea
    me.chat.addMember(me)
-   err := me.rtChannel.On("broadcast", map[string]string{
-      "event" : "message",
-   }, me.handleIncomingMessage)
-   if err != nil {
-      fmt.Printf("AHHHHHHHHHHHHHHHHHHH %v", err)
-   }
-   fmt.Println("Done adding new chat area")
 }
 
 func (me *member) handleIncomingMessage(msg any) {
@@ -84,13 +77,25 @@ func (me *member) handleIncomingMessage(msg any) {
 // Join party
 func (me *member) joinParty() error {
    log.Println("Joining party")
-   ctx, _ := context.WithTimeout(context.Background(), time.Second * 60)
-   err := me.rtChannel.Subscribe(ctx)
+   if me.chat == nil {
+      return fmt.Errorf("Error: Need to associated the member with a chatArea first")
+   }
+
+   err := me.rtChannel.On("broadcast", map[string]string{
+      "event" : "message",
+   }, me.handleIncomingMessage)
    if err != nil {
-      fmt.Println("Error Joining Party")
+      return fmt.Errorf("Unable to join the party: %v", err)
+   }
+
+   ctx, cancel := context.WithTimeout(context.Background(), time.Second * 60)
+   defer cancel()
+   err = me.rtChannel.Subscribe(ctx)
+   if err != nil {
       return fmt.Errorf("Unable to join the party: %v", err)
    }
    fmt.Println("Joined Party")
+
    return nil
 }
 
