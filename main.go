@@ -5,6 +5,7 @@ package main
 import (
 	"log"
 	"syscall/js"
+	"time"
 )
 
 const (
@@ -17,7 +18,7 @@ func main()  {
    logger.Println("Starting the wasm")
 
    chatArea := createChatArea()
-   member, err   := createMember("Bear", "OHAFE")
+   member, err   := createMember(time.Now().String(), "OHAFE")
    if err != nil {
       logger.Fatalf("Failed to create party member: %v", err)
    }

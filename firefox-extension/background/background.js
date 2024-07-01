@@ -2,58 +2,61 @@
 (async () => {
    const constantsURL = browser.runtime.getURL("events.js");
    const constants    = await import(constantsURL);
-   let currActiveTab  = null;
-   let contentPort = null;
+
    let popupPorts  = [] ;
+   let activeParties = new Map()
 
    const handlePopupEvent = async (msg) => {
       switch (msg.event_code) {
          case constants.STOP_PARTY:
-            if (contentPort !== null) {
-               contentPort.postMessage(msg)
+            {
+               const currTabId = await getCurrentTabId()
+               if (currTabId === null || !activeParties.has(currTabId)) {
+                  console.error("There is no active party on current tab")
+                  return
+               }
+               activeParties.get(currTabId).postMessage({
+                  event_code: constants.STOP_PARTY,
+                  message: "Stop the party :("
+               })
+               activeParties.delete(currTabId)
+               break;
             }
-            currActiveTab = null
-            break;
 
          case constants.START_PARTY:
-            if (currActiveTab != null)
-               return
-            const activeTabs = await browser.tabs.query({
-               currentWindow: true,
-               active: true
-            });
-            if (activeTabs.length <= 0) {
-               console.error("Failed to query tabs")
-               return
-            }
+            // Do nothing if already ran the program on this tab
+            {
+               const currTabId = await getCurrentTabId()
+               if (currTabId === null || activeParties.has(currTabId))
+                  return
 
-            currActiveTab = activeTabs[0]
-
-            try {
-               await browser.scripting.executeScript({
-                  target: {
-                     tabId: currActiveTab.id,
-                  },
-                  files: ["../wasm_exec.js", "../index.js"],
-               }) 
-            } catch (error) {
-               console.error(`Failed to load index.js: ${error}`)   
+               try {
+                  await browser.scripting.executeScript({
+                     target: {
+                        tabId: currTabId,
+                     },
+                     files: ["../wasm_exec.js", "../index.js"],
+                  }) 
+               } catch (error) {
+                  console.error(`Failed to load index.js: ${error}`)   
+               }
+               break;
             }
-            break;
          default:
             console.log(msg)
             break;
       }
    }
 
-   const handleContentEvent = (msg) => {
+   const handleContentEvent = async (port, msg) => {
       switch (msg.event_code) {
          case constants.PARTY_READY:
-            if (contentPort === null){
-               console.error("ASSERTION FAILED: contentPort must already set and connected")
+            const currTabId = await getCurrentTabId()
+            if (currTabId === null || activeParties.has(currTabId))
                return
-            }
-            contentPort.postMessage({
+            activeParties.set(currTabId, port)
+
+            port.postMessage({
                event_code: constants.START_PARTY,
                message: "Start the party!!!"
             })
@@ -64,7 +67,20 @@
       }
    }
 
-   browser.runtime.onConnect.addListener((port) => {
+   const getCurrentTabId = async () => {
+      const queriedTabs = await browser.tabs.query({
+         currentWindow: true,
+         active: true
+      });
+      if (queriedTabs.length <= 0) {
+         console.error("Failed to query tabs")
+         return null
+      }
+
+      return queriedTabs[0].id
+   }
+
+   browser.runtime.onConnect.addListener(async (port) => {
       switch (port.name) {
          case constants.BG_PORT_NAME:
             popupPorts.push(port)
@@ -75,13 +91,19 @@
             port.onMessage.addListener(handlePopupEvent)
             break
          case constants.CONTENT_PORT_NAME:
-            if (contentPort !== null) {
+            const currTabId = await getCurrentTabId()
+            if (currTabId === null || activeParties.has(currTabId)) {
                console.error("Port for content script already existed")
                return
             }
-            contentPort = port
-            port.onDisconnect.addListener(() => { contentPort = null; console.log("REMOVING CONTENT PORT") })
-            port.onMessage.addListener(handleContentEvent)
+
+            port.onDisconnect.addListener(async () => { 
+               const currTabId = await getCurrentTabId()
+               if (currTabId === null || activeParties.has(currTabId))
+                  return
+               activeParties.delete(currTabId)
+            })
+            port.onMessage.addListener((msg) => handleContentEvent(port, msg))
             break
          default:
             console.error(`Unrecognized port name: ${port.name}`)
