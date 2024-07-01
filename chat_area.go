@@ -8,16 +8,13 @@ import (
 type chatArea struct {
    htmlEl js.Value
    isOpen bool
+   currentMember *member
 }
 
 // Create the chat area with user's details
 func createChatArea() *chatArea {
-   return nil
-}
-
-func (*chatArea) injectChatArea() {
+   var newChatArea chatArea
    document := js.Global().Get("document")
-   body := document.Get("body")
 
    // Inject html to the page
    chatAreaHtml := document.Call("createElement", "div")
@@ -74,7 +71,7 @@ func (*chatArea) injectChatArea() {
       if !msg.Truthy() {
          return true
       }
-      newMsgHtml := createNewMsgHtml("Dawg", msg.String(), true)
+      newMsgHtml := newChatArea.createNewMsgHtml("Dawg", msg.String(), true)
       messageAreaHtml.Call("appendChild", newMsgHtml)
 
       // reset the input area
@@ -85,16 +82,34 @@ func (*chatArea) injectChatArea() {
    inputAreaHtml.Call("addEventListener", "keypress", inputOnSubmitFunc)
    chatAreaHtml.Call("appendChild", inputAreaHtml)
 
-   body.Call("insertAdjacentElement", "afterbegin", chatAreaHtml)
-   
-   return &chatArea{
-      isOpen: false,
-      htmlEl: chatAreaHtml,
+   // Initialize the chat area
+   newChatArea.isOpen = false
+   newChatArea.htmlEl = chatAreaHtml
+
+   return &newChatArea
+}
+
+func (ca *chatArea) addMember(newMember *member) {
+   if ca.currentMember != nil {
+      return
    }
+   ca.currentMember = newMember
+   ca.currentMember.addChatArea(ca)
+}
+
+func (ca *chatArea) injectChatArea() {
+   document := js.Global().Get("document")
+   body := document.Get("body")
+   body.Call("insertAdjacentElement", "afterbegin", ca.htmlEl)
+   
+}
+
+func (ca *chatArea) postMsg(msg string) {
+   
 }
 
 // Create a new message to be added to the chat
-func createNewMsgHtml(sender string, msg string, personal bool) js.Value {
+func (ca *chatArea) createNewMsgHtml(sender string, msg string, personal bool) js.Value {
    document := js.Global().Get("document")
    msgContainerHtml := document.Call("createElement", "div")
    msgContainerHtml.Get("style").Set("display", "flex")
@@ -137,6 +152,7 @@ func createNewMsgHtml(sender string, msg string, personal bool) js.Value {
    return msgContainerHtml
 }
 
+// Remove the chat area from DOM
 func (ca *chatArea) removeChatArea() {
-
+   ca.htmlEl.Call("remove")
 }

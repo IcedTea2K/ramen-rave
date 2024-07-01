@@ -17,6 +17,11 @@ func main()  {
    logger.Println("Starting the wasm")
 
    chatArea := createChatArea()
+   member, err   := createMember("Bear", "OHAFE")
+   if err != nil {
+      logger.Fatalf("Failed to create party member: %v", err)
+   }
+   member.addChatArea(chatArea)
 
    msgChan  := make(chan []js.Value)
    commPort := js.Global().Call("registerFunction", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -42,10 +47,14 @@ MAIN_LOOP:
          case START_PARTY:
             logger.Println("STARTING THE PARTY")
             chatArea.injectChatArea()
+            member.joinParty()
             break
+
          case STOP_PARTY:
             chatArea.removeChatArea()
+            member.exitParty()
             break MAIN_LOOP
+
          default:
             logger.Printf("Ignoring event: %v", eventCode)
             break
