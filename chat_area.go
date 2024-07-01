@@ -6,7 +6,8 @@ import (
 )
 
 type chatArea struct {
-   htmlEl js.Value
+   htmlEl         js.Value
+   messageAreaEl  js.Value
    isOpen bool
    currentMember *member
 }
@@ -71,8 +72,7 @@ func createChatArea() *chatArea {
       if !msg.Truthy() {
          return true
       }
-      newMsgHtml := newChatArea.createNewMsgHtml("Dawg", msg.String(), true)
-      messageAreaHtml.Call("appendChild", newMsgHtml)
+      newChatArea.displayMsg(newChatArea.currentMember.name, msg.String(), true)
 
       // reset the input area
       inputAreaHtml.Set("value", "")
@@ -85,6 +85,7 @@ func createChatArea() *chatArea {
    // Initialize the chat area
    newChatArea.isOpen = false
    newChatArea.htmlEl = chatAreaHtml
+   newChatArea.messageAreaEl = messageAreaHtml
 
    return &newChatArea
 }
@@ -104,8 +105,9 @@ func (ca *chatArea) injectChatArea() {
    
 }
 
-func (ca *chatArea) postMsg(msg string) {
-   
+func (ca *chatArea) displayMsg(sender string, msg string, personal bool) {
+   newMsgHtml := ca.createNewMsgHtml(sender, msg, personal) 
+   ca.messageAreaEl.Call("appendChild", newMsgHtml) 
 }
 
 // Create a new message to be added to the chat

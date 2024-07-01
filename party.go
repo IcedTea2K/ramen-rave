@@ -22,13 +22,14 @@ type member struct {
 }
 
 type event struct {
+   Sender string `json:"sender" validate:"required"`
    EventType string `json:"type" validate:"required"`
+
    MessageData message `json:"messageData"  validate:"required_if=EventType CHAT"`
    VideoData videoManipulation `json:"videoData" validate:"required_unless=EventType CHAT"`
 }
 
 type message struct {
-   Sender  string `json:"sender"    validate:"required"`
    Payload string `json:"payload"   validate:"required"`
 }
 
@@ -88,10 +89,15 @@ func (me *member) handleIncomingEvent(newEvent any) {
       log.Printf("Received event is invalid: %v", err)
       return
    }
+
+   // Ignore events that we post
+   if actualEvent.Sender == me.name {
+      return
+   }
    
    switch actualEvent.EventType {
       case CHAT_ACTION: 
-         me.handleIncomingMessage(actualEvent.MessageData)
+         me.handleIncomingMessage(actualEvent.Sender, actualEvent.MessageData)
          break
       default:
          log.Printf("Unable to recognize event type: %v", actualEvent.EventType)
@@ -99,8 +105,8 @@ func (me *member) handleIncomingEvent(newEvent any) {
    }
 }
 
-func (me *member) handleIncomingMessage(msg message) {
-   log.Printf("Received: %+v", msg)
+func (me *member) handleIncomingMessage(sender string, msg message) {
+   me.chat.displayMsg(sender, msg.Payload, false)
 }
 
 // Join party
