@@ -7,15 +7,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"syscall/js"
 	"time"
 
+	// "github.com/go-playground/validator/v10"
 	"github.com/supabase-community/realtime-go/realtime"
-   "github.com/go-playground/validator/v10"
 )
 
 type member struct {
    name string
    chat *chatArea
+   targetVideo js.Value
+   manipulateVideo bool
 
    rtClient  *realtime.RealtimeClient
    rtChannel *realtime.RealtimeChannel
@@ -26,7 +29,7 @@ type event struct {
    EventType string `json:"type" validate:"required"`
 
    MessageData message `json:"messageData"  validate:"required_if=EventType CHAT"`
-   VideoData videoManipulation `json:"videoData" validate:"required_unless=EventType CHAT"`
+   VideoData videoManipulation `json:"videoData" validate:"required_if=EventType VIDEO"`
 }
 
 type message struct {
@@ -35,14 +38,17 @@ type message struct {
 
 // Contains information about manipulating the video
 type videoManipulation struct {
-
+   ActionType  string  `json:"actionType" validate:"required"`
+   CurrentTime float64 `json:"currentTime" validate:"required_if=ActionType SEEK"`
 }
 
 const (
-   CHAT_ACTION string = "CHAT"
-   SEEK_ACTION string = "SEEK"
-   PLAY_ACTION string = "PLAY"
-   PAUSE_ACTION string = "SEEK"
+   CHAT_ACTION  string = "CHAT"
+   VIDEO_ACTION string = "VIDEO"
+
+   SEEK_ACTION_TYPE  string = "SEEK"
+   PLAY_ACTION_TYPE  string = "PLAY"
+   PAUSE_ACTION_TYPE string = "PAUSE"
 
    NEW_EVENT string = "NEW EVENT"
 )
@@ -73,7 +79,6 @@ func (me *member) addChatArea(newChatArea *chatArea) {
 
 // Post the message to the realtime connections
 func (me *member) postMsg(msg string) error {
-   log.Println("Posting new messages")
    ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
    defer cancel()
 
@@ -91,7 +96,29 @@ func (me *member) postMsg(msg string) error {
    if err != nil {
       return fmt.Errorf("Failed to post message: %v", err)
    }
-   log.Println("Done posting")
+
+   return nil
+}
+
+func (me *member) postVideoEvent(action string, timeStamp float64) error {
+   ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
+   defer cancel()
+
+   err := me.rtChannel.Send(realtime.CustomEvent{
+      Event: NEW_EVENT, 
+      Payload: event{
+         EventType: VIDEO_ACTION,
+         Sender: me.name,
+         VideoData: videoManipulation{
+            ActionType: action,
+            CurrentTime: timeStamp,
+         },
+      },
+      Type: "broadcast",
+   }, ctx)
+   if err != nil {
+      return fmt.Errorf("Failed to post video event: %v", err)
+   }
 
    return nil
 }
@@ -110,12 +137,12 @@ func (me *member) handleIncomingEvent(newEvent any) {
       return
    }
 
-   validate := validator.New(validator.WithRequiredStructEnabled())
-   err = validate.Struct(actualEvent)
-   if err != nil {
-      log.Printf("Received event is invalid: %v", err)
-      return
-   }
+   // validate := validator.New(validator.WithRequiredStructEnabled())
+   // err = validate.Struct(actualEvent)
+   // if err != nil {
+   //    log.Printf("Received event is invalid: %v", err)
+   //    return
+   // }
 
    // Ignore events that we post
    if actualEvent.Sender == me.name {
@@ -125,6 +152,9 @@ func (me *member) handleIncomingEvent(newEvent any) {
    switch actualEvent.EventType {
       case CHAT_ACTION: 
          me.handleIncomingMessage(actualEvent.Sender, actualEvent.MessageData)
+         break
+      case VIDEO_ACTION:
+         me.handleIncomingVideoEvent(actualEvent.VideoData)
          break
       default:
          log.Printf("Unable to recognize event type: %v", actualEvent.EventType)
@@ -136,13 +166,32 @@ func (me *member) handleIncomingMessage(sender string, msg message) {
    me.chat.displayMsg(sender, msg.Payload, false)
 }
 
+func (me *member) handleIncomingVideoEvent(videoData videoManipulation) {
+   if me.targetVideo.IsUndefined() {
+      log.Println("Currently doesn't have a target video")
+      return
+   } 
+   me.manipulateVideo = true
+   switch videoData.ActionType {
+      case PLAY_ACTION_TYPE:
+         me.targetVideo.Call("play")
+         break
+      case PAUSE_ACTION_TYPE:
+         me.targetVideo.Call("pause")
+         break
+      case SEEK_ACTION_TYPE:
+         me.targetVideo.Set("currentTime", videoData.CurrentTime)
+         break
+   }
+}
+
 // Join party
 func (me *member) joinParty() error {
-   log.Println("Joining party")
    if me.chat == nil {
       return fmt.Errorf("Error: Need to associated the member with a chatArea first")
    }
 
+   // Chatting Support
    err := me.rtChannel.On("broadcast", map[string]string{
       "event" : NEW_EVENT,
    }, me.handleIncomingEvent)
@@ -156,7 +205,45 @@ func (me *member) joinParty() error {
    if err != nil {
       return fmt.Errorf("Unable to join the party: %v", err)
    }
-   fmt.Println("Joined Party")
+
+   // Video manipulating support
+   document := js.Global().Get("document")
+   videos := document.Call("getElementsByTagName", "video")
+   if videos.Length() < 1 {
+      return fmt.Errorf("Unable to find the target video")
+   }
+   // Assume that the first returned video is the target
+   targetVideo := videos.Index(0)
+   targetVideo.Call("pause") // Pause the video initially
+   targetVideo.Set("onplay", js.FuncOf(func(this js.Value, args []js.Value) any {
+      if me.manipulateVideo {
+         me.manipulateVideo = false
+         return nil
+      }
+      me.postVideoEvent(PLAY_ACTION_TYPE, 0)
+      return nil
+   }))
+   targetVideo.Set("onpause", js.FuncOf(func(this js.Value, args []js.Value) any {
+      if me.manipulateVideo {
+         me.manipulateVideo = false
+         return nil
+      }
+      me.postVideoEvent(PAUSE_ACTION_TYPE, 0)
+      return nil
+   }))
+   targetVideo.Set("onseeked", js.FuncOf(func(this js.Value, args []js.Value) any {
+      if len(args) != 1 {
+         log.Println("There are more than 2 events passed into seek callback")
+         return nil
+      }
+      if me.manipulateVideo {
+         me.manipulateVideo = false
+         return nil
+      }
+      me.postVideoEvent(SEEK_ACTION_TYPE, targetVideo.Get("currentTime").Float())
+      return nil
+   }))
+   me.targetVideo = targetVideo
 
    return nil
 }
