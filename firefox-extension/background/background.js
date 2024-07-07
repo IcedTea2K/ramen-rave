@@ -19,7 +19,6 @@
                   event_code: constants.STOP_PARTY,
                   message: "Stop the party :("
                })
-               activeParties.delete(currTabId)
                break;
             }
 
@@ -51,6 +50,7 @@
    const handleContentEvent = async (port, msg) => {
       switch (msg.event_code) {
          case constants.PARTY_READY:
+            console.log("PARTY IS READY!!!")
             const currTabId = await getCurrentTabId()
             if (currTabId === null || activeParties.has(currTabId))
                return
@@ -93,13 +93,17 @@
          case constants.CONTENT_PORT_NAME:
             const currTabId = await getCurrentTabId()
             if (currTabId === null || activeParties.has(currTabId)) {
+               port.postMessage({
+                  event_code: constants.STOP_PARTY,
+                  message: "Stop the party :("
+               })
                console.error("Port for content script already existed")
                return
             }
 
             port.onDisconnect.addListener(async () => { 
                const currTabId = await getCurrentTabId()
-               if (currTabId === null || activeParties.has(currTabId))
+               if (currTabId === null || !activeParties.has(currTabId))
                   return
                activeParties.delete(currTabId)
             })

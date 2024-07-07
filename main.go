@@ -33,10 +33,22 @@ func main()  {
       commPort.Call("disconnect")
    }()
 
+   js.Global().Set("onbeforeunload", js.FuncOf(func(this js.Value, args []js.Value) any {
+      msgChan <- []js.Value{
+         js.ValueOf(map[string]any{
+            "event_code": STOP_PARTY,
+            "message": "stop the party!",
+         }),
+         js.Undefined(),
+      }
+      js.Global().Set("onbeforeunload", js.Undefined())
+      return nil
+   }))
+
 MAIN_LOOP:
    for {
       msg := <- msgChan
-      if len(msg) != 2 {
+      if len(msg) > 2 {
          logger.Fatal("TYPE ASSERTION FAILED: received more than just data and sender")
       } else if msg[0].Type() != js.TypeObject {
          logger.Fatal("TYPE ASSERTION FAILED: expecting an object for message")

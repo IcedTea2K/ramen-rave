@@ -250,5 +250,9 @@ func (me *member) joinParty() error {
 
 // Exit party
 func (me *member) exitParty() {
-
+   // Unset event listener
+   me.targetVideo.Set("onplay", js.Undefined())
+   me.targetVideo.Set("onpause", js.Undefined())
+   me.targetVideo.Set("onseeked", js.Undefined())
+   me.rtChannel.Unsubscribe(context.Background())
 }
